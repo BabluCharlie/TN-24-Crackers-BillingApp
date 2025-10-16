@@ -35,7 +35,21 @@ st.markdown(
 JSON_FILE = "tn-24-crackers-583ad6c889a7.json"
 
 if not os.path.exists(JSON_FILE):
-    st.error(f"Service account JSON not found: {JSON_FILE}. Please place it in the project folder.")
+    st.warning(
+        f"""
+        ⚠️ Service account JSON not found: `{JSON_FILE}`  
+
+        **Instructions to fix:**  
+        1. Go to Google Cloud Console → IAM & Admin → Service Accounts.  
+        2. Select your service account → Keys → Add Key → Create New JSON.  
+        3. Download the JSON file and place it in your project folder:  
+        `{os.getcwd()}`  
+        4. Rename the file exactly: `{JSON_FILE}`  
+        5. Share your Google Sheet 'BillingApp' with the service account email as **Editor**.  
+
+        Once done, refresh this app.
+        """
+    )
     st.stop()
 
 scope = [
@@ -51,7 +65,9 @@ try:
     product_sheet = client.open("BillingApp").worksheet("Products")
     billing_sheet = client.open("BillingApp").worksheet("Billing")
 except Exception as e:
-    st.error(f"Failed to connect to Google Sheets: {e}")
+    st.error(
+        f"❌ Failed to connect to Google Sheets. Please check your JSON credentials and spreadsheet access.\n\nError details: {e}"
+    )
     st.stop()
 
 # -----------------------------
