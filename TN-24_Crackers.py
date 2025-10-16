@@ -3,9 +3,10 @@ import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
 from datetime import datetime
+import os
 
 # -----------------------------
-# PAGE CONFIG MUST BE FIRST
+# PAGE CONFIG
 # -----------------------------
 st.set_page_config(
     page_title="TN-24 Crackers Billing App",
@@ -14,34 +15,15 @@ st.set_page_config(
 )
 
 # -----------------------------
-# CUSTOM CSS FOR GREEN THEME
+# CUSTOM CSS
 # -----------------------------
 st.markdown(
     """
     <style>
-    /* Body background */
-    .stApp {
-        background-color: #d0f0c0;
-        color: #033d00;
-    }
-    /* Input boxes */
-    .stTextInput>div>div>input {
-        border-radius: 8px;
-        padding: 8px;
-    }
-    /* Buttons */
-    div.stButton > button {
-        background-color: #4CAF50;
-        color: white;
-        border-radius: 8px;
-        padding: 10px 20px;
-        font-size: 16px;
-    }
-    /* Table styling */
-    .dataframe thead th {
-        background-color: #4CAF50;
-        color: white;
-    }
+    .stApp { background-color: #d0f0c0; color: #033d00; }
+    .stTextInput>div>div>input { border-radius: 8px; padding: 8px; }
+    div.stButton > button { background-color: #4CAF50; color: white; border-radius: 8px; padding: 10px 20px; font-size: 16px; }
+    .dataframe thead th { background-color: #4CAF50; color: white; }
     </style>
     """,
     unsafe_allow_html=True
@@ -50,6 +32,12 @@ st.markdown(
 # -----------------------------
 # GOOGLE SHEET CONNECTION
 # -----------------------------
+JSON_FILE = "tn-24-crackers-583ad6c889a7.json"
+
+if not os.path.exists(JSON_FILE):
+    st.error(f"Service account JSON not found: {JSON_FILE}. Please place it in the project folder.")
+    st.stop()
+
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/spreadsheets",
@@ -57,13 +45,14 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-creds = Credentials.from_service_account_file(
-    "tn-24-crackers-583ad6c889a7.json", scopes=scope
-)
-client = gspread.authorize(creds)
-
-product_sheet = client.open("BillingApp").worksheet("Products")
-billing_sheet = client.open("BillingApp").worksheet("Billing")
+try:
+    creds = Credentials.from_service_account_file(JSON_FILE, scopes=scope)
+    client = gspread.authorize(creds)
+    product_sheet = client.open("BillingApp").worksheet("Products")
+    billing_sheet = client.open("BillingApp").worksheet("Billing")
+except Exception as e:
+    st.error(f"Failed to connect to Google Sheets: {e}")
+    st.stop()
 
 # -----------------------------
 # STREAMLIT APP
@@ -83,7 +72,7 @@ def load_products():
 products_df = load_products()
 
 # -----------------------------
-# Customer Info & Payment Mode
+# Customer Info
 # -----------------------------
 st.markdown("### 👤 Customer Information")
 customer_name = st.text_input("Customer Name")
@@ -92,7 +81,6 @@ payment_mode = st.selectbox(
     "Payment Mode",
     options=["Cash", "UPI", "Card", "Bank Transfer"]
 )
-
 st.markdown("<br>", unsafe_allow_html=True)
 
 # -----------------------------
@@ -102,12 +90,12 @@ if "invoice_items" not in st.session_state:
     st.session_state.invoice_items = []
 
 # -----------------------------
-# Product Search & Add (Mobile Friendly)
+# Add Products to Invoice
 # -----------------------------
 st.markdown("### 🛒 Add Products to Invoice")
-
 selected_product_name = st.selectbox("Select Product", products_df["Product Name"])
 quantity = st.number_input("Quantity", min_value=1, max_value=1000, step=1)
+
 if st.button("➕ Add Product"):
     product_row = products_df[products_df["Product Name"] == selected_product_name].iloc[0]
     invoice_item = {
@@ -129,8 +117,7 @@ if st.session_state.invoice_items:
     st.subheader("🧾 Invoice Summary")
     invoice_df = pd.DataFrame(st.session_state.invoice_items)
     grand_total = invoice_df["Total"].sum()
-    st.dataframe(invoice_df, use_container_width=True)  # scrollable horizontally
-
+    st.dataframe(invoice_df, use_container_width=True)
     st.markdown(f"### 💰 Grand Total: ₹ {grand_total:,.2f}")
     st.markdown(f"**Payment Mode:** {payment_mode}")
 
@@ -170,5 +157,6 @@ if st.session_state.invoice_items:
                     float(item["Total"])
                 ])
             st.success("✅ Invoice saved and stock updated successfully!")
+
 else:
     st.info("Add products to the invoice using the search box above.")
